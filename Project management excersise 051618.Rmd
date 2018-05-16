@@ -1,0 +1,134 @@
+---
+title: "Rmarkdown test"
+author: "EK Lipp"
+date: "May 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# MERS Analysis
+
+This a report of the visualization examples prepared as part of IDEAS workshop day 1. 
+
+```{r mers}
+library(lubridate)
+library(ggplot2)
+library(plotly)
+
+mers <- read.csv('cases.csv')
+class(mers$onset)
+mers$hospitalized[890] <-('2015-02-20')
+mers <- mers[-471,]
+mers$onset2 <- ymd(mers$onset)
+mers$hospitalized2 <- ymd(mers$hospitalized)
+class(mers$onset2)
+day0 <- min(na.omit(mers$onset2))
+mers$epi.day <- as.numeric(mers$onset2 - day0)
+```
+
+## Global analysis of MERS
+
+
+
+```{r, echo=FALSE}
+ggplot(data=mers) + 
+  geom_bar(mapping=aes(x=epi.day)) +
+  labs(x='Epidemic day', y='Case count', 
+       title='Global count of mERS cases by date of symptom onset', 
+       caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+
+
+The following chart allows us to examine cases by country
+
+```{r, echo=FALSE}
+ggplot(data=mers) + 
+  geom_bar(mapping=aes(x=epi.day, fill=country)) +
+  labs(x='Epidemic day', y='Case count', 
+       title='Global count of mERS cases by date of symptom onset', 
+       caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+
+## MERS infectious period
+
+### Univariate analyses
+
+```{r, echo=FALSE}
+mers$infectious.period <- mers$hospitalized2-mers$onset2
+class(mers$infectious.period)
+mers$infectious.period <- as.numeric(mers$infectious.period, units="days")
+
+ggplot(data=mers) + 
+  geom_histogram(aes(x=infectious.period)) +
+  labs(x='Infectious Period', y='Frequnecy',title='Distribution of calculated MERS infectious period', 
+       caption="Data from: https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+The above example incluced nosocomial infections. Below we remove any cases that start before hospitalization
+
+
+```{r, echo=FALSE}
+mers$infectious.period2 <- ifelse(mers$infectious.period<0,0,mers$infectious.period)
+
+ggplot(data=mers) +
+  geom_histogram(aes(x=infectious.period2)) +
+  labs(x='Infectious period', y='Frequency',
+       title='Distribution of calcuated MERS infectious period (pos values only)',caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+
+### Bivariate analyses
+
+The following replicates the orginal graphs but with nosocomial infections removed.
+
+```{r, echo=FALSE}
+ggplot(data=mers) + 
+  geom_point(mapping=aes(x=epi.day, y=infectious.period2, colour=country)) +
+  labs(x='Epidemic day', y='Case count', 
+       title='Global count of mERS cases by date of symptom onset', 
+       caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+
+The following explores data using facets (broken out my country)
+
+```{r, echo=FALSE}
+ggplot(data=mers, mapping=aes(x=epi.day, y=infectious.period2)) +
+  geom_point(mapping = aes(color=country)) +
+  facet_wrap(~ country) +
+  scale_y_continuous(limits = c(0,50)) +
+  labs(x='Epidemic day',y="Infectious period", 
+       title='MERS infectious period (pos values ony) over time', 
+       caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+```
+
+##Interactive chart with plotly
+
+
+```{r, echo=FALSE}
+f<- list(
+  family="Courier New, monospace",
+  size = 18,
+  color="#7f7f7f"
+)
+x <- list(
+  title = "Infectious Period",
+  titlefont = f
+)
+y <- list(
+  title = "Epidemic Day",
+  titlefont = f
+)
+p<- plot_ly(x = mers$infectious.period2, y = mers$epi.day, type='histogram') %>% layout(xaxis = x, yaxis = y)
+p
+```
+### Interactive chart using ggplotly
+
+```{r, echo=FALSE}
+onset<- ggplot(data=mers) + 
+  geom_bar(mapping=aes(x=epi.day, fill=country)) +
+  labs(x='Epidemic day', y='Case count', 
+       title='Global count of mERS cases by date of symptom onset', 
+       caption="Data from https://github.com/rambaut/MERS-Cases/blob/gh-pages/data/cases.csv")
+ggplotly(onset)
+```
